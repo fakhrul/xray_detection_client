@@ -19,7 +19,7 @@ object_detection/test_images/out_image3.jpeg
 object_detection/test_images/out_image3.json
 
 # Ignore protos
-object_detection/protos/
+#object_detection/protos/
 
 .idea/
 
