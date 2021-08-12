@@ -42,7 +42,9 @@ def image_quality():
     print(output_filename)
     print(os.getcwd())
 
-    if os.path.isfile(os.path.join(os.getcwd(), output_filename)):
+    full_output_path = os.path.join(os.getcwd(), output_filename)
+    print(full_output_path)
+    if os.path.exists(full_output_path):
         return 'sucess'
     else:
         return ' failed'
