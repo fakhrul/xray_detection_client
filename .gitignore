@@ -19,8 +19,8 @@ object_detection/test_images/out_image3.jpeg
 object_detection/test_images/out_image3.json
 
 # Ignore protos
-#object_detection/protos/
-
+object_detection/protos/*.py
+protoc*
 .idea/
 
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio and WebStorm
