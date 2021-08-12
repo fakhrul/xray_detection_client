@@ -41,39 +41,12 @@ def image_quality():
 
     print(output_filename)
     print(os.getcwd())
+
+    if os.path.isfile(os.path.join(os.getcwd(), output_filename)):
+        return 'sucess'
+    else:
+        return ' failed'
     return send_from_directory(os.getcwd(), output_filename)
-
-    return 'done'
-    # Decoding and pre-processing base64 image
-    img = image.img_to_array(image.load_img(BytesIO(request.files["image"].read()),
-                                            target_size=(150, 150))) / 255.
-
-    # this line is added because of a bug in tf_serving < 1.11
-    img = img.astype('float16')
-
-    # Creating payload for TensorFlow serving request
-    payload = {
-        "instances": [{'input_image': img.tolist()}]
-    }
-
-    # Making POST request
-    r = requests.post('http://localhost:8501/v1/models/my_model:predict', json=payload)
-
-    # Decoding results from TensorFlow Serving server
-    pred = json.loads(r.content.decode('utf-8'))
-
-    # pred = (np.array(pred['predictions'])[0] > 0.4).astype(np.int)
-    # if pred == 0:
-    #     prediction = 'Bad'
-    # else:
-    #     prediction = 'Good'
-
-    # data["prediction"] = prediction
-
-    # Returning JSON response
-    return jsonify(pred)
-
-
 
 def format_mask(detection_masks, detection_boxes, N, image_size):
     """
