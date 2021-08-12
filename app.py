@@ -227,7 +227,7 @@ def process(filename):
     img = Image.fromarray(image_np)
     img.save(output_image)
     print('\n\nImage saved\n\n')
-    return 'OUTPUT.JPEG'
+    return 'OUTPUT.jpeg'
 
 
 if __name__ == '__main__':
