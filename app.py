@@ -44,10 +44,10 @@ def image_quality():
 
     full_output_path = os.path.join(os.getcwd(), output_filename)
     print(full_output_path)
-    if os.path.exists(full_output_path):
-        return 'sucess'
-    else:
-        return ' failed'
+    # if os.path.exists(full_output_path):
+    #     return 'sucess'
+    # else:
+    #     return ' failed'
     return send_from_directory(os.getcwd(), output_filename)
 
 def format_mask(detection_masks, detection_boxes, N, image_size):
