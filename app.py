@@ -73,7 +73,7 @@ def predict():
     output_filename = process(fullpath=new_fullpath, filename=new_filename)
 
     return jsonify({"status": 200, "data": {
-        "url" : 'http://localhost:5000/output/' + output_filename
+        "url" : 'http://178.128.105.21:5000/output/' + output_filename
     }})
     print(output_filename)
     print(os.getcwd())
