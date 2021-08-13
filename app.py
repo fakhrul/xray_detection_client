@@ -13,32 +13,68 @@ import object_detection.utils.ops as utils_ops
 from PIL import Image
 
 import os
-import json, requests
-from flask import Flask, request, jsonify, send_from_directory
+import json
+import requests
+from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask_cors import CORS
+import uuid
+import glob
+
 app = Flask(__name__)
+cors = CORS(app, resources={r"*": {"origins": "*"}})
 
 SERVER_URL = 'http://localhost:8501/v1/models/my_model:predict'
 PATH_TO_LABELS = './xray/labels.pbtxt'
+
 
 @app.route('/')
 def hello_world():
     return 'X-RAY Bone Fracture Detection API v1.0'
 
+@app.route('/sample/<string:pid>')
+def sample(pid):
+    dir = os.getcwd() + "/xray/image/"
+    for name in glob.glob(dir + pid):
+        return send_file(name)
+    return json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
 
-@app.route('/image-quality', methods=['POST'])
-def image_quality():
+@app.route('/output/<string:pid>')
+def output(pid):
+    dir = os.getcwd() + "/images/output/"
+    for name in glob.glob(dir + pid + '.*'):
+        return send_file(name)
+    return json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
+
+
+@app.route('/input/<string:pid>')
+def input(pid):
+    input_dir = os.getcwd() + "/images/input/"
+    for name in glob.glob(input_dir + pid + '.*'):
+        return send_file(name)
+    return json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
+
+
+@app.route('/predict', methods=['POST'])
+def predict():
     data = {}
 
+    print(request)
     if not request.files["image"]:
         return jsonify({"status": 400, "message": 'No image passed'})
 
     img = request.files["image"]
-    
-    img.save(img.filename)
-    RAW_FILE = img.filename
+    extension = img.filename.split('.')[-1]
 
-    output_filename = process(filename=img.filename)
+    new_filename = str(uuid.uuid1()) + "." + extension
+    new_fullpath = os.path.join(os.getcwd() + "/images/input", new_filename)
+    img.save(new_fullpath)
 
+
+    output_filename = process(fullpath=new_fullpath, filename=new_filename)
+
+    return jsonify({"status": 200, "data": {
+        "url" : 'http://localhost:5000/output/' + output_filename
+    }})
     print(output_filename)
     print(os.getcwd())
 
@@ -49,6 +85,7 @@ def image_quality():
     # else:
     #     return ' failed'
     return send_from_directory(os.getcwd(), output_filename)
+
 
 def format_mask(detection_masks, detection_boxes, N, image_size):
     """
@@ -63,7 +100,7 @@ def format_mask(detection_masks, detection_boxes, N, image_size):
 
     Returns:
         detection_masks (np.array): of size N * H * W  where H and W are the image Height and Width.
-    
+
     """
     (height, width, _) = image_size
     output_masks = np.zeros((N, image_size[0], image_size[1]))
@@ -76,11 +113,12 @@ def format_mask(detection_masks, detection_boxes, N, image_size):
         [y_min, x_min, y_max, x_max] = detection_boxes[i]
 
         # Compute absolute boundary of box
-        box_size = (int((x_max - x_min) * width), int((y_max - y_min) * height)) 
+        box_size = (int((x_max - x_min) * width),
+                    int((y_max - y_min) * height))
 
         # Resize the mask to the box size using LANCZOS appoximation
         resized_mask = normalized_mask.resize(box_size, Image.LANCZOS)
-        
+
         # Convert back to array
         resized_mask = np.array(resized_mask).astype(np.float32)
 
@@ -98,7 +136,7 @@ def format_mask(detection_masks, detection_boxes, N, image_size):
 
         # Replace the mask in the context of the original image size
         binary_mask = np.zeros((height, width))
-        
+
         x_min_at_scale = int(x_min * width)
         y_min_at_scale = int(y_min * height)
 
@@ -107,8 +145,9 @@ def format_mask(detection_masks, detection_boxes, N, image_size):
 
         for x in range(d_x):
             for y in range(d_y):
-                binary_mask[y_min_at_scale + y][x_min_at_scale + x] = binary_mask_box[y][x] 
-        
+                binary_mask[y_min_at_scale +
+                            y][x_min_at_scale + x] = binary_mask_box[y][x]
+
         # Update the masks array
         output_masks[i][:][:] = binary_mask
 
@@ -116,10 +155,11 @@ def format_mask(detection_masks, detection_boxes, N, image_size):
     output_masks = output_masks.astype(np.uint8)
     return output_masks
 
+
 def load_image_into_numpy_array(image):
-  (im_width, im_height) = image.size
-  return np.array(image.getdata()).reshape(
-      (im_height, im_width, 3)).astype(np.uint8)
+    (im_width, im_height) = image.size
+    return np.array(image.getdata()).reshape(
+        (im_height, im_width, 3)).astype(np.uint8)
 
 
 def pre_process(image_path):
@@ -138,7 +178,8 @@ def pre_process(image_path):
 
     # Expand dims to create  bach of size 1
     image_tensor = np.expand_dims(image_np, 0)
-    formatted_json_input = json.dumps({"signature_name": "serving_default", "instances": image_tensor.tolist()})
+    formatted_json_input = json.dumps(
+        {"signature_name": "serving_default", "instances": image_tensor.tolist()})
 
     return formatted_json_input
 
@@ -160,7 +201,8 @@ def post_process(server_response, image_size):
     # all outputs are float32 numpy arrays, so convert types as appropriate
 
     output_dict['num_detections'] = int(output_dict['num_detections'])
-    output_dict['detection_classes'] = np.array([int(class_id) for class_id in output_dict['detection_classes']])
+    output_dict['detection_classes'] = np.array(
+        [int(class_id) for class_id in output_dict['detection_classes']])
     output_dict['detection_boxes'] = np.array(output_dict['detection_boxes'])
     output_dict['detection_scores'] = np.array(output_dict['detection_scores'])
 
@@ -168,47 +210,51 @@ def post_process(server_response, image_size):
     if 'detection_masks' in output_dict:
         # Determine a threshold above wihc we consider the pixel shall belong to the mask
         # thresh = 0.5
-        output_dict['detection_masks'] = np.array(output_dict['detection_masks'])
-        output_dict['detection_masks'] = format_mask(output_dict['detection_masks'], output_dict['detection_boxes'], output_dict['num_detections'], image_size)
-    
+        output_dict['detection_masks'] = np.array(
+            output_dict['detection_masks'])
+        output_dict['detection_masks'] = format_mask(
+            output_dict['detection_masks'], output_dict['detection_boxes'], output_dict['num_detections'], image_size)
+
     return output_dict
 
 
-def process(filename):
-    image_path = os.path.join(os.getcwd(), filename)
-    print('image_path', image_path)
+def process(fullpath, filename):
+    # image_path = os.path.join(os.getcwd(), filename)
+    print('image_path', fullpath)
     # image_path = args.image_path
-    output_image = os.path.join(os.getcwd(), 'OUTPUT.JSON')
+    # output_image = os.path.join(os.getcwd(), 'OUTPUT.JSON')
     # save_output_image = os.path.join(os.getcwd(), 'OUTPUT.PNG')
     # path_to_labels = args.label_map
 
     # Build input data
-    print(f'\n\nPre-processing input file {image_path}...\n')
-    formatted_json_input = pre_process(image_path)
+    print(f'\n\nPre-processing input file {fullpath}...\n')
+    formatted_json_input = pre_process(fullpath)
     print('Pre-processing done! \n')
 
     # Call tensorflow server
     headers = {"content-type": "application/json"}
     print(f'\n\nMaking request to {SERVER_URL}...\n')
-    server_response = requests.post(SERVER_URL, data=formatted_json_input, headers=headers)
+    server_response = requests.post(
+        SERVER_URL, data=formatted_json_input, headers=headers)
     print(f'Request returned\n')
 
     # Post process output
     print(f'\n\nPost-processing server response...\n')
-    image = Image.open(image_path).convert("RGB")
+    image = Image.open(fullpath).convert("RGB")
     image_np = load_image_into_numpy_array(image)
     output_dict = post_process(server_response, image_np.shape)
     print(f'Post-processing done!\n')
 
     # Save output on disk
-    print(f'\n\nSaving output to {output_image}\n\n')
-    with open(output_image, 'w+') as outfile:
-        json.dump(json.loads(server_response.text), outfile)
-    print(f'Output saved!\n')
+    # print(f'\n\nSaving output to {output_image}\n\n')
+    # with open(output_image, 'w+') as outfile:
+    #     json.dump(json.loads(server_response.text), outfile)
+    # print(f'Output saved!\n')
 
     # if save_output_image:
     # Save output on disk
-    category_index = label_map_util.create_category_index_from_labelmap(PATH_TO_LABELS, use_display_name=True)
+    category_index = label_map_util.create_category_index_from_labelmap(
+        PATH_TO_LABELS, use_display_name=True)
 
     # Visualization of the results of a detection.
     vis_util.visualize_boxes_and_labels_on_image_array(
@@ -220,14 +266,18 @@ def process(filename):
         instance_masks=output_dict.get('detection_masks'),
         use_normalized_coordinates=True,
         line_thickness=8,
-        )
-    output_with_no_extension = output_image.split('.', 1)[0]
+    )
+    output_with_no_extension = filename.split('.', 1)[0]
     output_image = ''.join([output_with_no_extension, '.jpeg'])
     print(output_image)
     img = Image.fromarray(image_np)
-    img.save(output_image)
+
+    output_full_path = os.path.join(
+        os.getcwd() + "/images/output/", output_image)
+
+    img.save(output_full_path)
     print('\n\nImage saved\n\n')
-    return 'OUTPUT.jpeg'
+    return output_with_no_extension
 
 
 if __name__ == '__main__':
