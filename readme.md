@@ -1,6 +1,11 @@
 # Deployment
 
-Run start.sh
+## To run the app using nohup
+### update the file
+chmod +x start.sh
+
+### call the nohup
+nohup ./start.sh &
 
 
 
