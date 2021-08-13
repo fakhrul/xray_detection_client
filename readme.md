@@ -1,3 +1,11 @@
+# Deployment
+
+Run start.sh
+
+
+
+
+# Old Readme By Previous Developer Start Here 
 _Note: This repo is now archived and won't see further development_
 
 # How to serve your machine learning model with `tensorflow-serving`
