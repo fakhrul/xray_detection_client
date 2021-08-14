@@ -38,6 +38,20 @@ def sample(pid):
         return send_file(name)
     return json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
 
+@app.route('/treatment/<string:pid>')
+def treatment(pid):
+    dir = os.getcwd() + "/xray/treatment/"
+    for name in glob.glob(dir + pid):
+        return send_file(name)
+    return json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
+
+@app.route('/supporting/<string:pid>')
+def supporting(pid):
+    dir = os.getcwd() + "/xray/supporting/"
+    for name in glob.glob(dir + pid):
+        return send_file(name)
+    return json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
+
 @app.route('/output/<string:pid>')
 def output(pid):
     dir = os.getcwd() + "/images/output/"
@@ -73,6 +87,7 @@ def predict():
     output_filename = process(fullpath=new_fullpath, filename=new_filename)
 
     return jsonify({"status": 200, "data": {
+        "file_name" : img.filename,
         "url" : 'http://178.128.105.21:5000/output/' + output_filename
     }})
     print(output_filename)
