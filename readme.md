@@ -1,3 +1,28 @@
+# Deployment
+
+## To run the app using nohup
+### update the file
+````
+chmod +x start.sh
+````
+### call the nohup
+````
+nohup ./start.sh &
+````
+
+# Setting up the Tensor Flow Serving
+## Run Docker
+````
+docker run -p 8501:8501 --mount type=bind,source=/root/xray_detection_client/my_model,target=/models/my_model -e MODEL_NAME=my_model -t tensorflow/serving
+````
+
+## To test docer serving
+````
+python client.py --server_url "http://178.128.105.21:8501/v1/models/my_model:predict" --image_path "./xray/image/xray (1).png" --output_json "out_image1.json" --save_output_image "True" --label_map "./xray/labels.pbtxt"
+````
+
+
+# Old Readme By Previous Developer Start Here 
 _Note: This repo is now archived and won't see further development_
 
 # How to serve your machine learning model with `tensorflow-serving`
